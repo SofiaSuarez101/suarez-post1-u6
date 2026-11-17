@@ -94,7 +94,47 @@ inicio:
         inc bx                  ; BX++
         loop .bucle_suma        ; DEC CX; si CX != 0 salta
         ; AX = 15
+; -- BLOQUE 4: Control de flujo -----------------------------------------
+        mov ax, [valor_a]       ; AX = 45
+        cmp ax, [valor_b]       ; 45 - 12 = 33
+        jg  .mayor              ; salta si AX > valor_b (con signo)
+        je  .igual              ; salta si AX == valor_b
+        xor cx, cx              ; caso menor: CX = 0
+        jmp .fin_cmp
+.mayor:
+        mov cx, 1               ; CX = 1: valor_a > valor_b
+        jmp .fin_cmp
+.igual:
+        mov cx, 2               ; CX = 2: igualdad
+.fin_cmp:
 
-        
+        ; Bucle: suma acumulada de 1 a 5 (resultado esperado: 15)
+        xor ax, ax              ; AX = 0 (acumulador)
+        mov cx, 5               ; CX = contador del bucle
+        mov bx, 1               ; BX = valor inicial a sumar
+.bucle_suma:
+        add ax, bx              ; AX += BX
+        inc bx                  ; BX++
+        loop .bucle_suma        ; DEC CX; si CX != 0 salta
+        ; AX = 15
+
+; -- BLOQUE 5: Rotacion - ROL/ROR frente a SHL/SHR ----------------------
+        mov al, 81h             ; AL = 1000 0001b
+
+        mov bl, al              ; copia del valor original
+        shl bl, 1               ; BL = 02h, CF=1 (bit 7 perdido)
+
+        mov cl, al
+        rol cl, 1               ; CL = 03h, CF=1 (bit 7 pasa al bit 0)
+
+        mov dl, al
+        shr dl, 1               ; DL = 40h, CF=1 (bit 0 perdido)
+
+        mov bh, al
+        ror bh, 1               ; BH = C0h, CF=1 (bit 0 pasa al bit 7)
+
+        mov al, 0A5h            ; AL = 1010 0101b
+        rol al, 4               ; AL = 5Ah (nibbles intercambiados)
+
 ; -- Fin del programa ---------------------------------------------------
         int 20h                 ; retornar a DOS
