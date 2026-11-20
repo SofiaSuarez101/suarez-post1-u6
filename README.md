@@ -1,14 +1,9 @@
 # Post-contenido U6 — Instrucciones y Direccionamiento en NASM sobre DOSBox
 
 **Asignatura:** Arquitectura de Computadores · Unidad 6
-**Repositorio:** `apellido-post1-u6`
 **Herramientas:** DOSBox 0.74+, NASM 2.11+, DEBUG
 
-Este repositorio contiene las dos partes del laboratorio: `lab6_instrucciones.asm` (Parte 1) y `lab6_modos.asm` (Parte 2). Ambos se compilan con `nasm -f bin archivo.asm -o archivo.com`.
-
-> Las capturas se guardan en `capturas/` con los nombres indicados en cada checkpoint.
-
----
+## Este repositorio contiene las dos partes del laboratorio: `lab6_instrucciones.asm` (Parte 1) y `lab6_modos.asm` (Parte 2). Ambos se compilan con `nasm -f bin archivo.asm -o archivo.com`.
 
 # PARTE 1 — Programa de Instrucciones Mixtas
 
@@ -63,8 +58,6 @@ El bucle de suma se reemplazó por un factorial de 5. Se inicializa `AX = 1`, `C
 
 ## 4. Capturas
 
-### Parte 1
-
 #### Compilación sin errores ni advertencias
 
 ![Compilación sin errores ni advertencias](capturas/p1_cp1_compilacion.png)
@@ -88,5 +81,86 @@ SHL/SHR son la opción correcta cuando la manipulación es aritmética: desplaza
 ## 6. Decisión técnica 2 — ¿LOOP o DEC/JNZ?
 
 LOOP combina en una sola instrucción el decremento de CX y el salto si CX ≠ 0, lo que hace el código más compacto (un byte de opcode más desplazamiento, frente a dos instrucciones) y expresa con claridad la intención de "repetir CX veces". Sin embargo, escribir menos instrucciones no implica gastar menos ciclos: cada instrucción tiene su propio costo de decodificación y ejecución según la microarquitectura. En el 8086 original LOOP era ligeramente más rápida que DEC+JNZ, pero en procesadores posteriores (desde el 286, y de forma muy marcada en los modernos) LOOP se implementa con microcódigo y tarda más ciclos que la pareja DEC/JNZ, que los procesadores actuales ejecutan de forma muy eficiente e incluso fusionan (macro-fusion). Por eso el conteo de líneas de código fuente no es un indicador confiable del tiempo real. Para el bucle de 5 iteraciones del Bloque 4 la diferencia es despreciable, imperceptible para cualquier usuario. Si el mismo bucle se ejecutara millones de veces dentro de un programa mayor, la diferencia acumulada sí sería relevante y convendría usar DEC/JNZ.
+
+---
+
+# PARTE 2 — Modos de Direccionamiento
+
+## 1. Estructura de datos
+
+Se definen en `lab6_modos.asm`: `array` (5 words: 10, 20, 30, 40, 50), `nota1` (85), `nota2` (73), `promedio` (0), `var_x` (0FFFFh), `tabla_hex` y `matriz` (3×3 words: 1..9). Las direcciones exactas se obtienen con el listado de NASM (`nasm -f bin lab6_modos.asm -o lab6_modos.com -l lab6_modos.lst`) y se confirman con `D` en DEBUG. En little-endian el array aparece como `0A 00 14 00 1E 00 28 00 32 00`, `nota1` como `55 00` (0055h = 85) y `nota2` como `49 00` (0049h = 73).
+
+## 2. Tabla resumen de modos
+
+| Modo                      | Fórmula de la dirección efectiva                   | Instrucción NASM                        | Valor observado en DEBUG                |
+| ------------------------- | -------------------------------------------------- | --------------------------------------- | --------------------------------------- |
+| Inmediato                 | No hay acceso a memoria: el dato está en el opcode | `MOV ax, 100`                           | AX = 0064h (`U` muestra `MOV AX,0064`)  |
+| Directo                   | EA = dirección fija del símbolo                    | `MOV ax, [var_x]`                       | AX = FFFFh                              |
+| Directo                   | EA = dirección de `array`                          | `MOV bx, [array]`                       | BX = 000Ah (10)                         |
+| Indirecto por registro    | EA = SI                                            | `MOV ax, [si]` (SI = `nota1`)           | AX = 0055h (85)                         |
+| Indirecto por registro    | EA = SI                                            | `MOV [si], ax` (SI = `promedio`)        | mem[promedio] = 004Fh (79)              |
+| Indexado                  | EA = BX + SI                                       | `MOV ax, [bx + si]` (SI = 4)            | AX = 001Eh (30) = `array[2]`            |
+| Indexado con bucle        | EA = BX + SI, SI += 2                              | `ADD ax, [bx + si]`                     | AX = 0096h (150)                        |
+| Base + desplazamiento     | EA = BX + 2 / BX + 4                               | `MOV cx, [bx + 2]`                      | CX = 0049h (73), DX = 004Fh (79)        |
+| Indirecto con BP          | EA = BP − 2, BP − 4 (segmento SS)                  | `MOV ax, [bp - 2]` / `ADD ax, [bp - 4]` | AX = 015Dh (349)                        |
+| Doble indexación (matriz) | EA = BX + SI, SI = fila·6 + col·2                  | `MOV dx, [bx + si]`                     | SI = 000Ah, DX = 0006h = `matriz[1][2]` |
+
+## 3. Trazado del modo indirecto (Checkpoint 2)
+
+Valores típicos al iniciar un `.COM` en DEBUG (SI = 0000h); las direcciones dependen del listado.
+
+| Instrucción        | Registro modificado | Valor resultante                   |
+| ------------------ | ------------------- | ---------------------------------- |
+| `MOV si, nota1`    | SI                  | 0000h → dirección de `nota1`       |
+| `MOV ax, [si]`     | AX                  | 0055h (85)                         |
+| `MOV si, nota2`    | SI                  | dirección de `nota2` (`nota1` + 2) |
+| `MOV bx, [si]`     | BX                  | 0049h (73)                         |
+| `ADD ax, bx`       | AX                  | 009Eh (158)                        |
+| `SHR ax, 1`        | AX                  | 004Fh (79)                         |
+| `MOV si, promedio` | SI                  | dirección de `promedio`            |
+| `MOV [si], ax`     | mem[promedio]       | 004Fh (79)                         |
+
+## 4. Marco de pila con BP (Checkpoint 4)
+
+Valores típicos con SP = FFFEh al inicio (pueden variar en DOSBox):
+
+| Momento                       | SP    | BP                     |
+| ----------------------------- | ----- | ---------------------- |
+| Tras `PUSH bp` y `MOV bp, sp` | FFFCh | FFFCh                  |
+| Antes de `SUB sp, 4`          | FFFCh | FFFCh                  |
+| Después de `SUB sp, 4`        | FFF8h | FFFCh                  |
+| Tras `MOV sp, bp` y `POP bp`  | FFFEh | valor original (0000h) |
+
+`D SS:BP-4` debe mostrar `FA 00 63 00` (250 en BP−4 y 99 en BP−2, little-endian). Tras `ADD ax,[bp-4]`, AX = 015Dh (349).
+
+## 5. Acceso a matriz 3×3 (Checkpoint 5)
+
+Para `matriz[1][2]`: fila·ancho = 1·3 = 3 elementos, ×2 bytes = 6; columna 2 ×2 bytes = 4; SI = 6 + 4 = 10 (0Ah). Con `BX = matriz`, `[bx + si]` apunta al sexto word (valor 6), así que DX = 0006h.
+
+## 6. Capturas
+
+#### Dump `D DS:100` con array, nota1 y nota2 identificados
+
+![Dump `D DS:100` con array, nota1 y nota2 identificados](capturas/p2_cp1_dump.png)
+
+#### AX=150 en el bucle original y en el inverso
+
+![AX=150 en el bucle original y en el inverso ](capturas/p2_cp3_ax150.png)
+
+#### SP/BP antes y después, `D SS:BP-4`, AX=015Dh
+
+![SP/BP antes y después, `D SS:BP-4`, AX=015Dh](capturas/p2_cp4_bp.png)
+
+#### Dump de la matriz, SI=0Ah y DX=0006h
+
+![Dump de la matriz, SI=0Ah y DX=0006h](capturas/p2_cp5_matriz.png)
+
+## 7. Decisión técnica 3 — ¿Modo directo o indexado para un elemento fijo?
+
+Cuando la posición del elemento se conoce al compilar, el ensamblador puede resolver toda la aritmética de direcciones y embeber la dirección final en el opcode, de modo que `MOV dx, [matriz + 10]` es una sola instrucción con una única lectura de memoria. El indexado del Paso 7 paga en ejecución una `MUL` (muy costosa en ciclos), dos `SHL`, un `ADD` y varios `MOV` solo para reconstruir en tiempo de ejecución una dirección que ya era conocida de antemano; es trabajo repetido cada vez que se ejecuta el código. El modo indexado se vuelve indispensable cuando la fila o la columna dependen de una variable calculada en ejecución, por ejemplo el índice de un bucle, una entrada del usuario o un parámetro de una rutina, porque entonces la dirección no existe en tiempo de compilación. Para sumar las 9 posiciones, usar 9 accesos directos con 9 etiquetas sería impráctico: el código crecería con el tamaño de la matriz, sería difícil de mantener y no serviría para otras dimensiones, mientras que un solo bucle indexado con `[bx + si]` resuelve el problema con pocas instrucciones y escala a cualquier tamaño.
+
+## 8. Decisión técnica 4 — BP frente a BX/SI
+
+La arquitectura x86 asigna segmentos por defecto según el registro base: BX, SI y DI usan DS, pensados como punteros a datos, mientras que BP usa SS, pensado para acceder a variables locales y parámetros relativos a la pila (marco de pila). Esta separación permite que una rutina acceda a su marco sin depender del valor de DS y que apunte a datos globales sin tocar la pila, por lo que no son intercambiables en la práctica. En este laboratorio, al ser un `.COM`, CS, DS, ES y SS coinciden, así que `[bp+x]` y `[bx+x]` producen el mismo resultado observable. En un `.EXE` con DS ≠ SS la diferencia es crítica: si el código supone que `[bp + desplazamiento]` apunta al segmento de datos, leerá o escribirá bytes de la pila en lugar de la variable esperada, con resultados incorrectos o corrupción de la pila sin que el ensamblador avise. Para forzar a BP a usar DS se emplea un prefijo de sobrescritura de segmento, por ejemplo `mov ax, [ds:bp+2]`. Tiene sentido cuando una rutina que ya usa BP como marco de pila necesita leer una tabla global del segmento de datos con ese mismo registro base.
 
 ---
