@@ -1,7 +1,7 @@
 ; lab6_modos.asm - Demostracion de modos de direccionamiento x86
 ; Compilar: nasm -f bin lab6_modos.asm -o lab6_modos.com -l lab6_modos.com
 
-org 100h
+        org 100h
 
 ; -- Datos de prueba ----------------------------------------------------
         jmp inicio
@@ -83,6 +83,36 @@ inicio:
         mov cx, [bx + 2]        ; CX = nota2 = 73 (offset 2)
         mov dx, [bx + 4]        ; DX = promedio = 79 (offset 4)
 
+; -- MODO 3b: INDIRECTO POR BP - marco de variables locales -------------
+; BP usa el segmento SS por defecto (BX/SI/DI usan DS)
+        push bp                 ; preservar BP del programa principal
+        mov bp, sp              ; BP = SP: base del marco
+        sub sp, 4               ; reservar 2 words para locales
+
+        mov word [bp - 2], 99   ; local_1 = 99  (63h 00h)
+        mov word [bp - 4], 250  ; local_2 = 250 (FAh 00h)
+
+        mov ax, [bp - 2]        ; AX = 99
+        add ax, [bp - 4]        ; AX = 349 (015Dh)
+
+        mov sp, bp              ; liberar locales
+        pop bp                  ; restaurar BP original
+
+; -- ACCESO A MATRIZ: doble indexacion (fila, columna) ------------------
+; Elemento buscado: matriz[1][2] = 6
+; EA = base + fila*ancho_fila_bytes + columna*tamano_elemento
+        mov ax, 1               ; AX = fila = 1
+        mov bx, 3               ; BX = elementos por fila
+        mul bx                  ; AX = 1 * 3 = 3 (en elementos)
+        shl ax, 1               ; AX = 6 (en bytes)
+        mov si, ax              ; SI = desplazamiento de fila
+
+        mov cx, 2               ; CX = columna = 2
+        shl cx, 1               ; CX = 4 (en bytes)
+        add si, cx              ; SI = 10 (0Ah) desplazamiento total
+
+        mov bx, matriz          ; BX = direccion base de la matriz
+        mov dx, [bx + si]       ; DX = matriz[1][2] = 6
 
 ; -- Fin del programa ---------------------------------------------------
         int 20h                 ; retornar a DOS
