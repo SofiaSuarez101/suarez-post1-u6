@@ -67,19 +67,19 @@ El bucle de suma se reemplazó por un factorial de 5. Se inicializa `AX = 1`, `C
 
 #### Compilación sin errores ni advertencias
 
-![Ejecución de MULTI_ST.asm](capturas/p1_cp1_compilacion.png)
+![Compilación sin errores ni advertencias](capturas/p1_cp1_compilacion.png)
 
 #### Traza con flags de ADD, SUB, AND, TEST, CMP; AX=57 tras ADD
 
-![Ejecución de MULTI_ST.asm](capturas/p1_cp2_flags.png)
+![Traza con flags de ADD, SUB, AND, TEST, CMP; AX=57 tras ADD](capturas/p1_cp2_flags.png)
 
 #### AX=15 al final del bucle
 
-![Ejecución de MULTI_ST.asm](capturas/p1_cp2_ax15.png)
+![AX=15 al final del bucle](capturas/p1_cp2_ax15.png)
 
 #### Bloque 5: CF=1 y BL=02h, CL=03h, DL=40h, BH=C0h, AL=5Ah
 
-![Ejecución de MULTI_ST.asm](capturas/p1_cp4_rotacion.png)
+![Bloque 5: CF=1 y BL=02h, CL=03h, DL=40h, BH=C0h, AL=5Ah](capturas/p1_cp4_rotacion.png)
 
 ## 5. Decisión técnica 1 — ¿SHL/SHR o ROL/ROR?
 
